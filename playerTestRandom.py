@@ -2,6 +2,7 @@ import requests
 import json
 import cv2
 import numpy as np
+from random import randint
 
 # Helper Functions
 
@@ -111,9 +112,9 @@ req = {
 resField = requests.post("http://localhost:{}/checkField".format(mainServer), json = req)
 field = json.loads(resField.json().get("field"))
 
-print(type(field))
-print(field)
-print(type(field[0]))
+# print(type(field))
+# print(field)
+# print(type(field[0]))
 
 cv2.imshow("window", displayBoard(field, 5, 5))
 cv2.waitKey(20)
@@ -122,12 +123,10 @@ cv2.waitKey(20)
 # 		print(j, end = " ")
 # 	print()
 
-while True:
-	if ch == 6:
-		np.save("continue.npy", False)
-		break
-	ch = int(input("\n\nEnter direction choice:\nPS: 6 to exit\n\n"))
+while (ch != 6):
+	# ch = int(input("\n\nEnter direction choice:\nPS: 6 to exit\n\n"))
 
+	ch = randint(1,4)
 	req = {
 	'agentId': 123,
 	'action': str(ch)
@@ -143,10 +142,10 @@ while True:
 
 	field = json.loads(resField.json().get("field"))
 	img = displayBoard(field, 4, 4)
-	print("Here before displaying:\n\n")
+	# print("Here before displaying:\n\n")
 	cv2.imshow("window", img)
 	cv2.waitKey(20)
-	print("Here!")
+	# print("Here!")
 # 	for i in field:
 # 		for j in i:
 # 			print(j, end = " ")

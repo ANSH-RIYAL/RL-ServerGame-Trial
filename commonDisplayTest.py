@@ -4,7 +4,7 @@ from time import time
 from urllib.parse import urlparse
 from uuid import uuid4
 from random import randint
-import pickle
+import cv2
 
 import atexit
 # v2.x version - see https://stackoverflow.com/a/38501429/135978
@@ -15,6 +15,60 @@ import requests
 from flask import Flask, jsonify, request
 
 import numpy as np
+
+# Helper Function
+
+# def overWrite(startI, startJ, originalImage, smallImage):
+#     for i in range(smallImage.shape[0]):
+#         for j in range(smallImage.shape[1]):
+#             originalImage[startI + i][startJ + j] = smallImage[i][j]
+#     return originalImage
+
+# def displayfield():
+#     # field is the field position matrix of size 6x9 such that player is at index [5][4] (bottom center)
+#     image = np.zeros((70*20, 70*20, 3), dtype = np.uint8)
+#     # cv2.imshow("total Field", image)
+#     # cv2.waitKey()
+#     # field = np.asarray(field)
+#     # print(field)
+#     for i in range(field.shape[0]):
+#         for j in range(field.shape[1]):
+#             if field[i][j] == 1:
+#                 image = overWrite(20*i,20*j,image,otherPlayer)
+#             elif field[i][j] == 2:
+#                 image = overWrite(20*i,20*j,image,smallFruit)
+#             elif field[i][j] == 3:
+#                 image = overWrite(20*i,20*j,image,bigFruit)
+#     # image = overWrite(64*ownI,64*ownJ,image,hero)
+#     cv2.imshow("total Field", image)
+#     cv2.waitKey(5000)
+#     cv2.destroyAllWindows()
+#     return
+
+# hero = cv2.imread("./images/mainMonster.jpg")
+# # print(hero.shape)
+# hero = cv2.resize(hero, (20,20))
+# # cv2.imshow("window1",hero)
+# # cv2.waitKey()
+# # cv2.destroyAllWindows()
+
+# otherPlayer = cv2.imread("./images/otherMonster.jpg")
+# # print(otherPlayer.shape)
+# otherPlayer = cv2.resize(otherPlayer, (20,20))
+# # cv2.imshow("window2",otherPlayer)
+# # cv2.waitKey()
+# # cv2.destroyAllWindows()
+
+# smallFruit = cv2.imread("./images/smallFruit.png")
+# # print(smallFruit.shape)
+# smallFruit = cv2.resize(smallFruit, (20,20))
+# # cv2.imshow("window3",smallFruit)
+# # cv2.waitKey()
+# # cv2.destroyAllWindows()
+
+# bigFruit = cv2.imread("./images/bigFruit.jpg")
+# # print(bigFruit.shape)
+# bigFruit = cv2.resize(bigFruit, (20,20))
 
 # Instantiate the Node
 app = Flask(__name__)
@@ -27,14 +81,14 @@ smallPrizes = 0
 acceptPermission = {}
 currentPositions = {}
 
+# import apscheduler.schedulers.blocking
 
 cron = Scheduler(daemon=True)
+
+# cron = apscheduler.schedulers.blocking.BackgroundScheduler('apscheduler.job_defaults.max_instances': '10')
+
 # Explicitly kick off the background thread
 cron.start()
-
-@cron.interval_schedule(seconds = 1)
-def exportField():
-    np.save("field.npy", np.asarray(field))
 
 @cron.interval_schedule(minutes = 1)
 def graceEnergy():
@@ -43,12 +97,25 @@ def graceEnergy():
         energy[agentId] += 12
         print("\nAgent:{}\tEnergy:{}".format(agentId,energy[agentId]))
 
+    # displayfield()
+
+@cron.interval_schedule(seconds = 5)
+def displayTheField():
+    print("Displaying the field\nDimensions of field: ", field.shape)
+    req = {
+    "field": str(field.tolist())
+    }
+    displayServer = 5005
+    res = requests.post("http://localhost:{}/field".format(displayServer), json = req)
+    print("Donezooo!!, req response = ", res)
+
 @cron.interval_schedule(seconds = 15)
 def redistributeWealth():
     global bigPrizes
     global smallPrizes
     global field
     print(bigPrizes,smallPrizes)
+    # cv2.destroyAllWindows()
     for i in range(bigPrizes,60):
         randomI = randint(10,height/2)
         randomJ = randint(10,width)
@@ -70,6 +137,9 @@ def redistributeWealth():
 
         field[randomI][randomJ] = 2
     smallPrizes = 60
+
+    print("redistributeWealth done")
+    
 
     # for i in range(len(field)):
     #     for j in range(len(field[0])):
@@ -94,11 +164,13 @@ def agentAdd():
     'message': "Watashi ga kita!!!!"
     }
 
-    for i in range(len(field)):
-        for j in range(len(field[0])):
-            print(field[i][j], end = " ")
-        print("")
-    print("\n\n")
+    # for i in range(len(field)):
+    #     for j in range(len(field[0])):
+    #         print(field[i][j], end = " ")
+    #     print("")
+    # print("\n\n")
+
+    # displayfield()
 
     return jsonify(res), 200
 
@@ -111,8 +183,8 @@ def getField():
     # print(field[16:25])
     # print(current_i, current_j)
     smallField = field[current_i - 4 : current_i + 5, current_j - 4 : current_j + 5]
-    print("\n\n\n\n\n{}\n\n\n\n\n".format(smallField))
-    print(str(smallField))
+    # print("\n\n\n\n\n{}\n\n\n\n\n".format(smallField))
+    # print(str(smallField))
     smallField = smallField.tolist()
     res = {
     "field" : str(smallField),
@@ -197,6 +269,8 @@ def move():
     'message': "legal move, Hence done" if flag else "illegal move, learn to play idiot",
     'field': str(field)
     }
+
+    # displayfield()
     return jsonify(res), 200
 
 
@@ -218,13 +292,17 @@ if __name__ == '__main__':
     currentPositions = {}
     directions = {}
 
-    np.save("continue.npy", True)
     print("Initialising the field:\n\n")
     for i in range(len(field)):
         for j in range(len(field[0])):
             print(field[i][j], end = "")
         print("")
     print("\n\n")
-    field = np.asarray(field)
-    
+    field = np.asarray(field, dtype = np.uint8)
+
+    redistributeWealth()
+    print(field)
+
+    # displayfield()
+
     app.run(host='0.0.0.0', port=port)
