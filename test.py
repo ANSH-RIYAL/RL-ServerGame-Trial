@@ -1,4 +1,17 @@
-a = [[1,2,3], [1,2,3], [1,2,3]]
-print(a)
-print(a[0:2])
-print(a[:,0:1])
+from random import randint
+import requests
+import json
+
+def initializeAgent(agentId):
+    mainServer = "http://localhost:5001/addAgent"
+    req = {
+    'agentId': agentId,
+    'initial_i': randint(20,50),
+    'initial_j': randint(20,50)
+    }
+
+    res = requests.post(mainServer, json = req)
+    return res.json().get("done")
+
+for i in range(6):
+	initializeAgent(randint(20,80))

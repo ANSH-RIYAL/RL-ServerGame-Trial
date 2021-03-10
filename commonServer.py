@@ -27,6 +27,12 @@ smallPrizes = 0
 acceptPermission = {}
 currentPositions = {}
 
+def consecutiveMoves(l):
+    start = l[0]
+    for i in l:
+        if i != start:
+            return False
+    return True
 
 cron = Scheduler(daemon=True)
 # Explicitly kick off the background thread
@@ -49,7 +55,7 @@ def redistributeWealth():
     global bigPrizes
     global smallPrizes
     global field
-    print(bigPrizes,smallPrizes)
+    print("\n\n\nCurent values of prizes: \n",bigPrizes,smallPrizes,"\n\n\n")
     for i in range(bigPrizes,60):
         randomI = randint(10,height/2)
         randomJ = randint(10,width)
@@ -96,23 +102,24 @@ def agentAdd():
         }
         return jsonify(res), 200
     field[initialPosition[0]][initialPosition[1]] = 1
-    energy[values["agentId"]] = 50
+    energy[values["agentId"]] = 200
     directions[values["agentId"]] = 0
     if values["agentId"] in currentPositions:
         orig_i, orig_j = currentPositions[values["agentId"]]
         field[orig_i][orig_j] = 0
     currentPositions[values["agentId"]] = initialPosition
+    lastMoves[values["agentId"]] = [0,0,0]
 
     res = {
     'message': "Watashi ga kita!!!!",
     "done": True
     }
 
-    for i in range(len(field)):
-        for j in range(len(field[0])):
-            print(field[i][j], end = " ")
-        print("")
-    print("\n\n")
+    # for i in range(len(field)):
+    #     for j in range(len(field[0])):
+    #         print(field[i][j], end = " ")
+    #     print("")
+    # print("\n\n")
 
     return jsonify(res), 200
 
@@ -127,20 +134,21 @@ def getField():
     # print(field[16:25])
     # print(current_i, current_j)
     
-    smallField = np.copy(field[current_i - 4 : current_i + 5, current_j - 4 : current_j + 5])
+    # smallField = np.copy(field[current_i - 4 : current_i + 5, current_j - 4 : current_j + 5])
+    smallField = np.copy(field[current_i - 9 : current_i + 10, current_j - 9 : current_j + 10])
     # print("\n\n\n\n\n{}\n\n\n\n\n".format(smallField))
     # print(str(smallField))
     
-    direction = directions[agentId]
+    # direction = directions[agentId]
     
-    if direction == 0:
-        smallField[5:9] = np.zeros((4,9))
-    elif direction == 1:
-        smallField[:,0:4] = np.zeros((9,4))
-    elif direction == 2:
-        smallField[0:4] = np.zeros((4,9))
-    elif direction == 3:
-        smallField[:,5:9] = np.zeros((9,4))
+    # if direction == 0:
+    #     smallField[5:9] = np.zeros((4,9))
+    # elif direction == 1:
+    #     smallField[:,0:4] = np.zeros((9,4))
+    # elif direction == 2:
+    #     smallField[0:4] = np.zeros((4,9))
+    # elif direction == 3:
+    #     smallField[:,5:9] = np.zeros((9,4))
 
     smallField = smallField.tolist()
     
@@ -168,14 +176,17 @@ def move():
     move = int(values["action"]) + 1
     flag = True
     print("\nMove is: ",move,"\n")
+    lastMoves[values["agentId"]] = lastMoves[values["agentId"]][1:] + [int(move)]
+
     direction = directions[agentId]
     orig_i, orig_j = int(current_i), int(current_j)
     if (move == 5):
         energy[agentId] += 2
-        reward = 0
+        reward = 0.1
     
     elif (move == 1):
-        reward = 1
+        reward = 0.4
+        energy[agentId] += 2
         if (direction == 0) and (current_i > 10) and (field[current_i-1][current_j] != 1):
             current_i -= 1
 
@@ -192,17 +203,17 @@ def move():
             flag = False
         
     elif (move == 2):
-        reward = 1
+        reward = 0.2
         direction = (direction-1)%4
         energy[agentId] += 1
         
     elif (move == 3):
-        reward = 1
+        reward = 0.2
         direction = (direction+1)%4
         energy[agentId] += 1
 
     elif (move == 4):
-        reward = 1
+        reward = 0.2
         direction = (direction-2)%4
         energy[agentId] += 1
 
@@ -213,18 +224,22 @@ def move():
 
     if (current_i != orig_i) or (current_j != orig_j):
         field[orig_i][orig_j] = 0
-        reward += (field[current_i][current_j]**3)*2
+        reward += (field[current_i][current_j]**3)/50
 
-    field[current_i][current_j] = 1
+    if consecutiveMoves(lastMoves[values["agentId"]]):
+        reward = 0
+        print("\n\n\nRepeated Moves\n\n\n")
+    
     print("\nRewards obtained is:\t{}\n\n".format(reward))
-    if reward == 2:
+    if field[current_i][current_j] == 2:
         smallPrizes -= 1
         energy[agentId] += 5
-    if reward == 3:
+    if field[current_i][current_j] == 3:
         bigPrizes -= 1
         energy[agentId] += 15
     print("Yaay! Updated Energy level: ", energy[agentId])
     print("\n\n\n")
+    field[current_i][current_j] = 1
 
     directions[agentId] = direction
 
@@ -258,7 +273,10 @@ if __name__ == '__main__':
     smallPrizes = 0
     acceptPermission = {}
     currentPositions = {}
+    lastMoves = {}
     directions = {}
+
+    redistributeWealth()
 
     np.save("continue.npy", True)
     print("Initialising the field:\n\n")
