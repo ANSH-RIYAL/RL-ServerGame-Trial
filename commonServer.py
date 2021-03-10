@@ -34,6 +34,7 @@ cron.start()
 
 @cron.interval_schedule(seconds = 1)
 def exportField():
+    print("\n\nExported!!!!\n\n")
     np.save("field.npy", np.asarray(field))
 
 @cron.interval_schedule(minutes = 1)
@@ -85,13 +86,26 @@ atexit.register(lambda: cron.shutdown(wait=False))
 def agentAdd():
     values = request.get_json()
     initialPosition = [values['initial_i'],values['initial_j']]
+    # agentId = values["agentId"]
+    # if agentId in energy.keys():
+
+    if field[initialPosition[0]][initialPosition[1]] != 0:
+        print("field at index was not zero!")
+        res = {
+        "done": False
+        }
+        return jsonify(res), 200
     field[initialPosition[0]][initialPosition[1]] = 1
     energy[values["agentId"]] = 50
     directions[values["agentId"]] = 0
+    if values["agentId"] in currentPositions:
+        orig_i, orig_j = currentPositions[values["agentId"]]
+        field[orig_i][orig_j] = 0
     currentPositions[values["agentId"]] = initialPosition
 
     res = {
-    'message': "Watashi ga kita!!!!"
+    'message': "Watashi ga kita!!!!",
+    "done": True
     }
 
     for i in range(len(field)):
@@ -104,20 +118,37 @@ def agentAdd():
 
 @app.route('/checkField', methods = ['POST'])
 def getField():
+    
     values = request.get_json()
     agentId = values["agentId"]
     current_i, current_j = currentPositions[agentId]
+    
     # print(len(field), len(field[0]))
     # print(field[16:25])
     # print(current_i, current_j)
-    smallField = field[current_i - 4 : current_i + 5, current_j - 4 : current_j + 5]
-    print("\n\n\n\n\n{}\n\n\n\n\n".format(smallField))
-    print(str(smallField))
+    
+    smallField = np.copy(field[current_i - 4 : current_i + 5, current_j - 4 : current_j + 5])
+    # print("\n\n\n\n\n{}\n\n\n\n\n".format(smallField))
+    # print(str(smallField))
+    
+    direction = directions[agentId]
+    
+    if direction == 0:
+        smallField[5:9] = np.zeros((4,9))
+    elif direction == 1:
+        smallField[:,0:4] = np.zeros((9,4))
+    elif direction == 2:
+        smallField[0:4] = np.zeros((4,9))
+    elif direction == 3:
+        smallField[:,5:9] = np.zeros((9,4))
+
     smallField = smallField.tolist()
+    
     res = {
     "field" : str(smallField),
-    "direction": directions[agentId]
+    "direction": str(directions[agentId])
     }
+    
     return jsonify(res), 200
 
 @app.route('/moveAgent', methods = ['POST'])
@@ -134,15 +165,17 @@ def move():
     values = request.get_json()
     agentId = values["agentId"]
     current_i, current_j = currentPositions[agentId]
-    move = values["action"]
+    move = int(values["action"]) + 1
     flag = True
+    print("\nMove is: ",move,"\n")
     direction = directions[agentId]
     orig_i, orig_j = int(current_i), int(current_j)
-    if (int(move) == 5):
+    if (move == 5):
         energy[agentId] += 2
+        reward = 0
     
-    elif (int(move) == 1):
-
+    elif (move == 1):
+        reward = 1
         if (direction == 0) and (current_i > 10) and (field[current_i-1][current_j] != 1):
             current_i -= 1
 
@@ -158,15 +191,18 @@ def move():
         else:
             flag = False
         
-    elif (int(move) == 2):
+    elif (move == 2):
+        reward = 1
         direction = (direction-1)%4
         energy[agentId] += 1
         
-    elif (int(move) == 3):
+    elif (move == 3):
+        reward = 1
         direction = (direction+1)%4
         energy[agentId] += 1
 
-    elif (int(move) == 4):
+    elif (move == 4):
+        reward = 1
         direction = (direction-2)%4
         energy[agentId] += 1
 
@@ -175,9 +211,10 @@ def move():
 
     energy[agentId] -= 2
 
-    reward = field[current_i][current_j]
     if (current_i != orig_i) or (current_j != orig_j):
         field[orig_i][orig_j] = 0
+        reward += (field[current_i][current_j]**3)*2
+
     field[current_i][current_j] = 1
     print("\nRewards obtained is:\t{}\n\n".format(reward))
     if reward == 2:
@@ -195,8 +232,13 @@ def move():
 
     res = {
     'message': "legal move, Hence done" if flag else "illegal move, learn to play idiot",
-    'field': str(field)
+    'reward': str(reward),
+    'done': False
     }
+
+    if energy[agentId] < 0:
+        res['done'] = True
+
     return jsonify(res), 200
 
 

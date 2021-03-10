@@ -62,9 +62,6 @@ cv2.waitKey()
 cv2.destroyAllWindows()
 
 
-
-
-
 mainServer = 5001
 
 # Dummy user:
@@ -134,7 +131,8 @@ while True:
 	}
 	# print(req)
 	res = requests.post("http://localhost:{}/moveAgent".format(mainServer), json = req)
-	# print(res)
+	print("message received is: ",res.json().get("message"))
+	print("\nreward obtained is: ",res.json().get("reward"))
 
 	req = {
 	'agentId': 123
