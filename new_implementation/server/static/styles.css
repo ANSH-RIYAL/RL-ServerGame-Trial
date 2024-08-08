@@ -1,0 +1,37 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+#grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    width: 10vw;
+    height: 10vh;
+    box-sizing: border-box;
+}
+
+.row {
+    display: contents; /* Use grid's native behavior */
+}
+
+.cell {
+    width: 100px; /* Adjust cell size as needed */
+    height: 100px;
+    border: 1px solid #ccc; /* Optional: To see cell borders */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.center-square {
+    background-color: #f0f0f0;
+}
+
+.entity {
+    max-width: 100%;
+    max-height: 100%;
+}

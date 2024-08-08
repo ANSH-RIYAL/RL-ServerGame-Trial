@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Field</title>
+    <link rel="stylesheet" href="static/styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Timestep: <span id="timestep">0</span></h1>
+    <div id="grid"></div>
+
+    <script>
+        const directions = {
+            '1': 'up-left',  '2': 'up',  '3': 'up-right',
+            '4': 'left',     '5': 'right',
+            '6': 'down-left', '7': 'down', '8': 'down-right'
+        };
+
+        let currentPlayerId = null;
+
+        $(document).ready(function() {
+            $.post("/api/start", function(response) {
+                console.log("Game started:", response);
+                // Fetch initial game state
+                fetchState();
+            }).fail(function(jqXHR, textStatus, errorThrown) {
+                console.error("Error starting the game:", textStatus, errorThrown);
+            });
+
+            // Set up keyboard input for movement
+            $(document).keydown(function(e) {
+                const key = e.key;
+                if (directions[key] && currentPlayerId !== null) {
+                    movePlayer(directions[key]);
+                }
+            });
+        });
+
+        function fetchState() {
+            $.get("/api/get_state", function(data) {
+                updateDisplay(data);
+                $('#timestep').text(data.timestep);
+                console.log(data.timestep);
+                setTimeout(fetchState, 1000); // Refresh every second
+            });
+        }
+
+        function updateDisplay(state) {
+            const gridElement = $('#grid');
+            gridElement.empty();
+
+            for (let y = 0; y < 10; y++) {
+                const rowElement = $('<div class="row"></div>');
+                for (let x = 0; x < 10; x++) {
+                    const cellElement = $('<div class="cell"></div>');
+                    let cellContent = '';
+
+                    // Check for entities
+                    state.players.forEach(player => {
+                        if (player.position[0] === x && player.position[1] === y) {
+                            cellContent = '<img src="./static/images/player.png" class="entity">';
+                        }
+                    });
+
+                    state.monsters.forEach(monster => {
+                        if (monster.position[0] === x && monster.position[1] === y) {
+                            cellContent = '<img src="./static/images/monster.png" class="entity">';
+                        }
+                    });
+
+                    state.obstacles.forEach(obstacle => {
+                        if (obstacle.position[0] === x && obstacle.position[1] === y) {
+                            cellContent = '<img src="./static/images/obstacle.png" class="entity">';
+                        }
+                    });
+
+                    state.fruits.forEach(fruit => {
+                        if (fruit.position[0] === x && fruit.position[1] === y) {
+                            cellContent = '<img src="./static/images/fruit.png" class="entity">';
+                        }
+                    });
+
+                    if (x >= 3 && x <= 6 && y >= 3 && y <= 6) {
+                        cellElement.addClass('center-square');
+                    }
+
+                    cellElement.html(cellContent);
+                    rowElement.append(cellElement);
+                }
+                gridElement.append(rowElement);
+            }
+        }
+
+        function movePlayer(direction) {
+            $.ajax({
+                url: "/api/move_player",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({
+                    user_id: currentPlayerId,
+                    direction: direction
+                }),
+                success: function(response) {
+                    console.log("Player moved:", response);
+                }
+            });
+        }
+
+        function createPlayer(userId) {
+            $.ajax({
+                url: "/api/create_player",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ user_id: userId }),
+                success: function(response) {
+                    currentPlayerId = userId;
+                    console.log("Player created:", response);
+                }
+            });
+        }
+
+        // Example: Automatically create a player for demo purposes
+        $(window).on('load', function() {
+            const demoUserId = "player1";
+            createPlayer(demoUserId);
+        });
+    </script>
+</body>
+</html>
